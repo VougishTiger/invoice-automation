@@ -1,0 +1,5 @@
+invoice_id,description,qty,unit_price
+INV-1001,Website uptime monitoring,1,120.00
+INV-1001,Automated backups configuration,1,80.00
+INV-1002,POS system installation,1,350.00
+INV-1002,Staff training (2 hrs),2,60.00

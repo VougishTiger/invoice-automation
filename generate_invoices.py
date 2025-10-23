@@ -1,0 +1,1 @@
+print("Invoice automation project is ready!")
