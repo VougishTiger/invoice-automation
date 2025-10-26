@@ -6,6 +6,7 @@ import smtplib
 from email.message import EmailMessage
 import mimetypes
 import re
+import argparse
 
 BASE_DIR= os.path.dirname(os.path.abspath(__file__))
 DATA_DIR= os.path.join(BASE_DIR, "data")
@@ -21,7 +22,6 @@ BUSINESS= {
 
 EMAIL_USER= os.getenv("EMAIL_USER","")
 EMAIL_PASS= os.getenv("EMAIL_PASS","")
-SEND_EMAILS= True
 
 def read_csv(filename):
   path= os.path.join(DATA_DIR, filename)
@@ -74,10 +74,30 @@ def send_pdf(to_email, subject, body, pdf_path, from_email, from_pass):
   maintype, subtype= ctype.split("/",1)
   with open(pdf_path,"rb") as f:
     msg.add_attachment(f.read(), maintype= maintype, subtype= subtype, filename= os.path.basename(pdf_path))
-  with smtplib.SMTP_SSL("smtp.gmail.com",465) as s:
-    s.login(from_email, from_pass)
-    s.send_message(msg)
-  return True
+  try:
+    with smtplib.SMTP_SSL("smtp.gmail.com",465) as s:
+      s.login(from_email, from_pass)
+      s.send_message(msg)
+    return True
+  except smtplib.SMTPAuthenticationError:
+    pass
+  try:
+    with smtplib.SMTP("smtp.gmail.com",587) as s:
+      s.ehlo()
+      s.starttls()
+      s.login(from_email, from_pass)
+      s.send_message(msg)
+    return True
+  except Exception:
+    return False
+
+p= argparse.ArgumentParser()
+p.add_argument("--only-unpaid", action="store_true")
+p.add_argument("--client", default="")
+p.add_argument("--invoice", default="")
+p.add_argument("--send-emails", choices=["yes","no"], default="yes")
+args= p.parse_args()
+SEND_EMAILS= (args.send_emails=="yes")
 
 clients= read_csv("clients.csv")
 invoices= read_csv("invoices.csv")
@@ -105,6 +125,13 @@ pdf_options= {
 }
 
 for inv in invoices:
+  if args.only_unpaid and inv.get("status","").lower()!="unpaid":
+    continue
+  if args.client and inv["client_id"]!=args.client:
+    continue
+  if args.invoice and inv["invoice_id"]!=args.invoice:
+    continue
+
   invoice_id= inv["invoice_id"]
   client_id= inv["client_id"]
 
