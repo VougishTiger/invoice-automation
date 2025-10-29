@@ -5,6 +5,7 @@ import smtplib
 from email.message import EmailMessage
 from flask import Flask, request, render_template_string, send_file
 from datetime import date
+import shutil
 
 EMAIL_USER= os.getenv("EMAIL_USER", "")
 EMAIL_PASS= os.getenv("EMAIL_PASS","")
@@ -484,14 +485,20 @@ def submit():
   tax= round(subtotal*tax_rate,2)
   total= subtotal+tax
   ctx= {**inv,"rows":"\n".join(rows_html) if rows_html else "<tr><td colspan='4'>No items</td></tr>","subtotal": money(subtotal),"tax": money(tax),"total": money(total)}
-  html= render_template_string(TPL, **ctx)
-  pdf_bytes= pdfkit.from_string(html, False, options={"page-size":"Letter","margin-top":"10mm","margin-right":"10mm","margin-bottom":"10mm","margin-left":"10mm","quiet":"","no-print-media-type":None,"disable-smart-shrinking":""})
+  wkhtml= shutil.which("wkhtmltopdf")
+  if not wkhtml:
+    return "wkhtmltopdf not found on this system. Install it or add it to PATH.", 500
+  config= pdfkit.configuration(wkhtmltopdf= wkhtml)
+  pdf_bytes= pdfkit.from_string(render_template_string(TPL, **ctx), False, configuration= config, options={"page-size":"Letter","margin-top":"10mm","margin-right":"10mm","margin-bottom":"10mm","margin-left":"10mm","quiet":"","no-print-media-type":None,"disable-smart-shrinking":""})
   fname= f"{inv['invoice_id']}.pdf"
-  if EMAIL_USER and EMAIL_PASS and inv["client_email"]:
-    send_mail(inv["client_email"], f"Receipt {inv['invoice_id']}", f"Your receipt total {ctx['total']}.", pdf_bytes, fname)
-  owner_email= request.form.get("owner_email","")
-  if EMAIL_USER and EMAIL_PASS and owner_email:
-    send_mail(owner_email, f"Receipt {inv['invoice_id']}", f"Copy of receipt {inv['invoice_id']} total {ctx['total']}.", pdf_bytes, fname)
+  try:
+    if EMAIL_USER and EMAIL_PASS and inv["client_email"]:
+      send_mail(inv["client_email"], f"Receipt {inv['invoice_id']}", f"Your receipt total {ctx['total']}.", pdf_bytes, fname)
+    owner_email= request.form.get("owner_email","")
+    if EMAIL_USER and EMAIL_PASS and owner_email:
+      send_mail(owner_email, f"Receipt {inv['invoice_id']}", f"Copy of receipt {inv['invoice_id']} total {ctx['total']}.", pdf_bytes, fname)
+  except Exception:
+    pass
   return send_file(io.BytesIO(pdf_bytes), mimetype="application/pdf", as_attachment=True, download_name=fname)
 
 if __name__ == "__main__":
