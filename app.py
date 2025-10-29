@@ -6,6 +6,7 @@ from email.message import EmailMessage
 from flask import Flask, request, render_template_string, send_file
 from datetime import date
 import shutil
+import traceback
 
 EMAIL_USER= os.getenv("EMAIL_USER", "")
 EMAIL_PASS= os.getenv("EMAIL_PASS","")
@@ -223,7 +224,7 @@ body{
 .switch input:checked + .slider{ background:#2b8fff }
 .switch input:checked + .slider:before{ transform:translateX(22px); background:#fff }
 
-.card{
+card{
   background:var(--card); backdrop-filter: blur(12px) saturate(120%);
   border:1px solid var(--line); border-radius:16px;
   box-shadow: 0 20px 40px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.02);
@@ -452,6 +453,11 @@ def send_mail(to_email, subject, body, pdf_bytes, fname):
     s.login(EMAIL_USER, EMAIL_PASS)
     s.send_message(msg)
 
+def find_wkhtmltopdf():
+  env_path= os.getenv("WKHTMLTOPDF_PATH")
+  if env_path and os.path.exists(env_path):
+    return env_path
+  return shutil.which("wkhtmltopdf")
 
 @app.get("/")
 def index():
@@ -485,11 +491,31 @@ def submit():
   tax= round(subtotal*tax_rate,2)
   total= subtotal+tax
   ctx= {**inv,"rows":"\n".join(rows_html) if rows_html else "<tr><td colspan='4'>No items</td></tr>","subtotal": money(subtotal),"tax": money(tax),"total": money(total)}
-  wkhtml= shutil.which("wkhtmltopdf")
+
+  wkhtml= find_wkhtmltopdf()
   if not wkhtml:
-    return "wkhtmltopdf not found on this system. Install it or add it to PATH.", 500
-  config= pdfkit.configuration(wkhtmltopdf= wkhtml)
-  pdf_bytes= pdfkit.from_string(render_template_string(TPL, **ctx), False, configuration= config, options={"page-size":"Letter","margin-top":"10mm","margin-right":"10mm","margin-bottom":"10mm","margin-left":"10mm","quiet":"","no-print-media-type":None,"disable-smart-shrinking":""})
+    msg= "wkhtmltopdf binary not found on server. Set WKHTMLTOPDF_PATH env var or install wkhtmltopdf on the host."
+    print("[PDF] " + msg, flush=True)
+    return msg, 500
+
+  try:
+    config= pdfkit.configuration(wkhtmltopdf= wkhtml)
+    html= render_template_string(TPL, **ctx)
+    pdf_bytes= pdfkit.from_string(html, False, configuration= config, options={
+      "page-size":"Letter",
+      "margin-top":"10mm",
+      "margin-right":"10mm",
+      "margin-bottom":"10mm",
+      "margin-left":"10mm",
+      "quiet":"",
+      "no-print-media-type": None,
+      "disable-smart-shrinking":""
+    })
+  except Exception as e:
+    print("[PDF] Generation failed:", e, flush=True)
+    traceback.print_exc()
+    return f"PDF generation failed on server: {e}", 500
+
   fname= f"{inv['invoice_id']}.pdf"
   try:
     if EMAIL_USER and EMAIL_PASS and inv["client_email"]:
@@ -497,8 +523,9 @@ def submit():
     owner_email= request.form.get("owner_email","")
     if EMAIL_USER and EMAIL_PASS and owner_email:
       send_mail(owner_email, f"Receipt {inv['invoice_id']}", f"Copy of receipt {inv['invoice_id']} total {ctx['total']}.", pdf_bytes, fname)
-  except Exception:
-    pass
+  except Exception as e:
+    print("[MAIL] send failed:", e, flush=True)
+
   return send_file(io.BytesIO(pdf_bytes), mimetype="application/pdf", as_attachment=True, download_name=fname)
 
 if __name__ == "__main__":
