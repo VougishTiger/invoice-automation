@@ -6,7 +6,6 @@ from email.message import EmailMessage
 from flask import Flask, request, render_template_string, send_file
 from datetime import date
 import shutil
-import traceback
 
 EMAIL_USER= os.getenv("EMAIL_USER", "")
 EMAIL_PASS= os.getenv("EMAIL_PASS","")
@@ -212,7 +211,7 @@ body{
 
 .theme-toggle{ display:flex; align-items:center; gap:10px }
 .switch{ position:relative; width:48px; height:26px }
-.switch input{ opacity:0; width:0; height:0 }
+switch input{ opacity:0; width:0; height:0 }
 .slider{
   position:absolute; cursor:pointer; inset:0; background:#1b2740; border:1px solid var(--line); border-radius:999px;
   transition:.2s; box-shadow: inset 0 1px 0 rgba(255,255,255,.04)
@@ -224,7 +223,7 @@ body{
 .switch input:checked + .slider{ background:#2b8fff }
 .switch input:checked + .slider:before{ transform:translateX(22px); background:#fff }
 
-card{
+.card{
   background:var(--card); backdrop-filter: blur(12px) saturate(120%);
   border:1px solid var(--line); border-radius:16px;
   box-shadow: 0 20px 40px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.02);
@@ -268,7 +267,7 @@ td input{ background:color-mix(in oklab, var(--bg0) 12%, black) }
   background:color-mix(in oklab, var(--bg1) 75%, black) center/cover no-repeat;
 }
 
-.actions{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; justify-content:flex-end; padding:16px; border-top:1px solid var(--line); background:color-mix(in oklab, var(--bg0) 85%, black) }
+actions{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; justify-content:flex-end; padding:16px; border-top:1px solid var(--line); background:color-mix(in oklab, var(--bg0) 85%, black) }
 .btn{
   appearance:none; border:none; cursor:pointer; padding:10px 14px; border-radius:10px; font-weight:600;
   letter-spacing:.3px; transition:transform .08s ease, box-shadow .2s ease, opacity .2s ease;
@@ -320,7 +319,7 @@ function setTheme(t){ document.documentElement.setAttribute('data-theme', t); lo
 function initTheme(){
   const saved=localStorage.getItem('sr_theme'); const prefers=window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';
   const theme=saved||prefers; setTheme(theme);
-  const chk=document.getElementById('themeChk'); if(chk) chk.checked=(theme==='light');
+  const chk=document.getElementById('themeChk'); if(chk) chk.addEventListener('change', onThemeToggle);
 }
 function onThemeToggle(e){ setTheme(e.target.checked?'light':'dark'); }
 function onLogoChange(e){
@@ -332,7 +331,6 @@ function onLogoChange(e){
 function onSubmitStart(){ document.querySelector('.loading').classList.add('show'); }
 document.addEventListener('DOMContentLoaded', ()=>{
   initTheme();
-  const chk=document.getElementById('themeChk'); if(chk) chk.addEventListener('change', onThemeToggle);
   const logo=document.getElementById('logo_file'); if(logo) logo.addEventListener('change', onLogoChange);
   const form=document.querySelector('form'); form.addEventListener('submit', onSubmitStart);
   document.querySelector('input[name=invoice_date]').value=new Date().toISOString().slice(0,10);
@@ -453,11 +451,6 @@ def send_mail(to_email, subject, body, pdf_bytes, fname):
     s.login(EMAIL_USER, EMAIL_PASS)
     s.send_message(msg)
 
-def find_wkhtmltopdf():
-  env_path= os.getenv("WKHTMLTOPDF_PATH")
-  if env_path and os.path.exists(env_path):
-    return env_path
-  return shutil.which("wkhtmltopdf")
 
 @app.get("/")
 def index():
@@ -491,31 +484,11 @@ def submit():
   tax= round(subtotal*tax_rate,2)
   total= subtotal+tax
   ctx= {**inv,"rows":"\n".join(rows_html) if rows_html else "<tr><td colspan='4'>No items</td></tr>","subtotal": money(subtotal),"tax": money(tax),"total": money(total)}
-
-  wkhtml= find_wkhtmltopdf()
+  wkhtml= shutil.which("wkhtmltopdf")
   if not wkhtml:
-    msg= "wkhtmltopdf binary not found on server. Set WKHTMLTOPDF_PATH env var or install wkhtmltopdf on the host."
-    print("[PDF] " + msg, flush=True)
-    return msg, 500
-
-  try:
-    config= pdfkit.configuration(wkhtmltopdf= wkhtml)
-    html= render_template_string(TPL, **ctx)
-    pdf_bytes= pdfkit.from_string(html, False, configuration= config, options={
-      "page-size":"Letter",
-      "margin-top":"10mm",
-      "margin-right":"10mm",
-      "margin-bottom":"10mm",
-      "margin-left":"10mm",
-      "quiet":"",
-      "no-print-media-type": None,
-      "disable-smart-shrinking":""
-    })
-  except Exception as e:
-    print("[PDF] Generation failed:", e, flush=True)
-    traceback.print_exc()
-    return f"PDF generation failed on server: {e}", 500
-
+    return "wkhtmltopdf not found on this system. Install it or add it to PATH.", 500
+  config= pdfkit.configuration(wkhtmltopdf= wkhtml)
+  pdf_bytes= pdfkit.from_string(render_template_string(TPL, **ctx), False, configuration= config, options={"page-size":"Letter","margin-top":"10mm","margin-right":"10mm","margin-bottom":"10mm","margin-left":"10mm","quiet":"","no-print-media-type":None,"disable-smart-shrinking":""})
   fname= f"{inv['invoice_id']}.pdf"
   try:
     if EMAIL_USER and EMAIL_PASS and inv["client_email"]:
@@ -523,10 +496,10 @@ def submit():
     owner_email= request.form.get("owner_email","")
     if EMAIL_USER and EMAIL_PASS and owner_email:
       send_mail(owner_email, f"Receipt {inv['invoice_id']}", f"Copy of receipt {inv['invoice_id']} total {ctx['total']}.", pdf_bytes, fname)
-  except Exception as e:
-    print("[MAIL] send failed:", e, flush=True)
-
+  except Exception:
+    pass
   return send_file(io.BytesIO(pdf_bytes), mimetype="application/pdf", as_attachment=True, download_name=fname)
 
 if __name__ == "__main__":
   app.run(host="0.0.0.0", port=int(os.getenv("PORT","5000")), debug=True)
+
