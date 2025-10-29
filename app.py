@@ -42,6 +42,12 @@ html,body{background:var(--bg);color:var(--text);font-family:"Inter",Arial,Helve
   align-items:flex-start;
   padding-bottom:24px;
   border-bottom:2px solid var(--border);
+  gap:18px;
+}
+.brandwrap{display:flex;gap:14px;align-items:flex-start}
+.logoimg{
+  width:56px;height:56px;border-radius:10px;border:1px solid var(--border);
+  object-fit:cover; background:#0b1220
 }
 h1{
   font-size:32px;
@@ -49,8 +55,9 @@ h1{
   text-transform:uppercase;
   color:var(--accent);
   text-shadow:var(--glow);
+  margin-bottom:6px
 }
-.brand{font-weight:700;font-size:18px;color:var(--text);margin-top:8px}
+.brand{font-weight:700;font-size:18px;color:var(--text);margin-top:4px}
 .muted{color:var(--muted);font-size:14px}
 .meta{text-align:right;font-size:14px;color:var(--muted)}
 .meta b{color:var(--text)}
@@ -121,11 +128,14 @@ th{
 <body>
 <div class="paper">
   <div class="header">
-    <div>
-      <h1>RECEIPT</h1>
-      <div class="brand">{{ business_name }}</div>
-      <div class="muted">{{ business_address }}</div>
-      <div class="muted">{{ business_email }}</div>
+    <div class="brandwrap">
+      {% if logo %}<img class="logoimg" src="{{ logo }}" alt="logo">{% endif %}
+      <div>
+        <h1>RECEIPT</h1>
+        <div class="brand">{{ business_name }}</div>
+        <div class="muted">{{ business_address }}</div>
+        <div class="muted">{{ business_email }}</div>
+      </div>
     </div>
     <div class="meta">
       <div><b>Receipt #:</b> {{ invoice_id }}</div>
@@ -173,125 +183,256 @@ FORM= """<!doctype html>
 <head>
 <meta charset="utf-8"><title>Create Receipt</title>
 <style>
+:root{
+  --bg0:#0b1220; --bg1:#0f172a; --card:#0b1220cc; --muted:#9aa4b2; --text:#e5e7eb;
+  --line:#223047; --accent:#60a5fa; --accent2:#22d3ee; --btnText:#071225; --ring:0 0 0 3px rgba(96,165,250,.25)
+}
+:root[data-theme="light"]{
+  --bg0:#eef2ff; --bg1:#f8fafc; --card:#ffffffcc; --muted:#475569; --text:#0f172a;
+  --line:#dbe2f0; --accent:#2563eb; --accent2:#06b6d4; --btnText:#ffffff; --ring:0 0 0 3px rgba(37,99,235,.22)
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
 body{
-  margin:0;
-  font-family:"Inter",Arial,Helvetica,sans-serif;
-  background:linear-gradient(135deg,#2563eb,#0ea5e9);
-  color:#111;
-  min-height:100vh;
-  display:flex;
-  align-items:center;
-  justify-content:center;
+  font-family:"Inter",system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+  color:var(--text);
+  background:
+    radial-gradient(1200px 800px at 10% 10%, var(--accent2)20 0%, transparent 60%),
+    radial-gradient(1200px 800px at 90% 30%, var(--accent)20 0%, transparent 60%),
+    linear-gradient(180deg, var(--bg0) 0%, var(--bg1) 100%);
+  min-height:100vh; display:flex;align-items:center;justify-content:center; padding:28px;
 }
-.container{
-  width:95%;
-  max-width:900px;
-  background:rgba(255,255,255,0.95);
-  backdrop-filter:blur(10px);
-  border-radius:16px;
-  box-shadow:0 10px 30px rgba(0,0,0,0.2);
-  padding:40px 50px;
+.wrapper{ width:100%; max-width:980px; position:relative }
+.header{ display:flex; align-items:center; justify-content:space-between; margin:0 auto 14px auto; max-width:980px }
+.brand{ display:flex;gap:10px;align-items:center; letter-spacing:.4px; font-weight:700 }
+.brand .dot{ width:10px;height:10px;border-radius:50%; background:conic-gradient(from 0deg,var(--accent),var(--accent2),var(--accent)); box-shadow:0 0 20px var(--accent2) }
+.header small{ color:var(--muted) }
+
+.theme-toggle{ display:flex; align-items:center; gap:10px }
+.switch{ position:relative; width:48px; height:26px }
+.switch input{ opacity:0; width:0; height:0 }
+.slider{
+  position:absolute; cursor:pointer; inset:0; background:#1b2740; border:1px solid var(--line); border-radius:999px;
+  transition:.2s; box-shadow: inset 0 1px 0 rgba(255,255,255,.04)
 }
-h2{
-  text-align:center;
-  margin-bottom:20px;
-  color:#1e3a8a;
-  font-size:28px;
-  letter-spacing:.5px;
+.slider:before{
+  content:""; position:absolute; height:20px; width:20px; left:3px; top:2px; background:#e2e8f0; border-radius:50%;
+  transition:.2s; box-shadow:0 2px 6px rgba(0,0,0,.25)
 }
-h3{
-  margin-top:28px;
-  color:#1e40af;
-  border-left:4px solid #3b82f6;
-  padding-left:10px;
-  font-size:18px;
-}
-input,textarea{
-  width:100%;
-  padding:10px 12px;
-  margin:6px 0 14px 0;
-  border:1px solid #d1d5db;
-  border-radius:8px;
-  font-size:15px;
-  transition:all .2s ease;
-}
-input:focus,textarea:focus{
-  border-color:#3b82f6;
-  outline:none;
-  box-shadow:0 0 0 3px rgba(59,130,246,0.2);
-}
-table{
-  width:100%;
-  border-collapse:collapse;
-  margin-top:10px;
-  background:#f9fafb;
-  border-radius:8px;
+.switch input:checked + .slider{ background:#2b8fff }
+.switch input:checked + .slider:before{ transform:translateX(22px); background:#fff }
+
+.card{
+  background:var(--card); backdrop-filter: blur(12px) saturate(120%);
+  border:1px solid var(--line); border-radius:16px;
+  box-shadow: 0 20px 40px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.02);
   overflow:hidden;
 }
-th,td{
-  border:1px solid #e5e7eb;
-  padding:10px;
-  font-size:14px;
+.card .topbar{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:14px 18px; background:linear-gradient( to right, color-mix(in oklab, var(--bg0) 85%, black), color-mix(in oklab, var(--bg0) 75%, black) );
+  border-bottom:1px solid var(--line);
 }
-th{
-  background:#eff6ff;
-  text-align:left;
-  color:#1e40af;
-  font-weight:600;
+.topbar h2{font-size:18px;font-weight:700;letter-spacing:.3px}
+.grid{ display:grid; gap:16px; grid-template-columns: repeat(12, 1fr); padding:18px }
+.section{
+  border:1px solid var(--line); border-radius:12px; padding:16px;
+  background: linear-gradient(180deg, color-mix(in oklab, var(--bg1) 88%, black), color-mix(in oklab, var(--bg1) 78%, black));
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.02);
 }
-button{
-  background:#3b82f6;
-  color:#fff;
-  border:none;
-  border-radius:8px;
-  padding:12px 18px;
-  font-size:15px;
-  cursor:pointer;
-  margin-top:10px;
-  transition:background .2s ease,transform .1s ease;
+.section h3{ font-size:13px; text-transform:uppercase; letter-spacing:.14em; color:var(--muted); margin-bottom:10px }
+.col-6{grid-column: span 6}.col-12{grid-column: span 12}
+
+label{ display:block; font-size:13px; color:var(--muted); margin-bottom:6px }
+input,textarea{
+  width:100%; color:var(--text); background:color-mix(in oklab, var(--bg0) 10%, black);
+  border:1px solid var(--line); border-radius:10px; padding:10px 12px; font-size:14px;
+  transition:border-color .2s, box-shadow .2s, transform .08s;
 }
-button:hover{background:#2563eb;transform:translateY(-2px);}
-button:active{transform:translateY(0);}
-footer{
-  text-align:center;
-  color:#64748b;
-  font-size:13px;
-  margin-top:20px;
+textarea{min-height:84px;resize:vertical}
+input::placeholder,textarea::placeholder{ color:color-mix(in oklab, var(--muted) 70%, black) }
+input:focus,textarea:focus{ outline:none; border-color:var(--accent); box-shadow:var(--ring) }
+input:active{ transform:scale(.998) }
+
+.tablewrap{ border:1px dashed var(--line); border-radius:10px; padding:10px; background:color-mix(in oklab, var(--bg1) 65%, black) }
+table{ width:100%; border-collapse:collapse }
+th,td{ padding:10px 10px; border-bottom:1px solid var(--line); font-size:14px }
+th{ color:color-mix(in oklab, var(--accent) 80%, white); text-align:left; font-weight:600 }
+td input{ background:color-mix(in oklab, var(--bg0) 12%, black) }
+
+.logo-box{ display:flex; align-items:center; gap:12px; margin-top:6px }
+.logo-preview{
+  width:56px; height:56px; border-radius:10px; border:1px solid var(--line);
+  background:color-mix(in oklab, var(--bg1) 75%, black) center/cover no-repeat;
 }
+
+.actions{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; justify-content:flex-end; padding:16px; border-top:1px solid var(--line); background:color-mix(in oklab, var(--bg0) 85%, black) }
+.btn{
+  appearance:none; border:none; cursor:pointer; padding:10px 14px; border-radius:10px; font-weight:600;
+  letter-spacing:.3px; transition:transform .08s ease, box-shadow .2s ease, opacity .2s ease;
+}
+.btn:active{ transform:translateY(1px) }
+.btn-primary{
+  background:linear-gradient(135deg,var(--accent),var(--accent2)); color:var(--btnText);
+  box-shadow:0 10px 25px color-mix(in oklab, var(--accent) 35%, transparent), 0 0 0 1px color-mix(in oklab, var(--accent) 50%, black) inset;
+}
+.btn-primary:hover{ box-shadow:0 12px 28px color-mix(in oklab, var(--accent) 50%, transparent), 0 0 0 1px color-mix(in oklab, var(--accent) 65%, black) inset }
+.btn-ghost{ background:transparent; color:var(--muted); border:1px solid var(--line) }
+.kbd{
+  font-family:ui-monospace,Menlo,Consolas,monospace; display:inline-block; padding:2px 6px;
+  border-radius:6px; border:1px solid var(--line); background:color-mix(in oklab, var(--bg0) 88%, black); color:var(--muted); font-size:12px
+}
+
+/* submit loading overlay */
+.loading{
+  position:fixed; inset:0; display:none; place-items:center; backdrop-filter:blur(6px);
+  background:rgba(0,0,0,.35); z-index:50
+}
+.loading.show{ display:grid }
+.spinner{
+  width:72px;height:72px;border-radius:50%;
+  background:
+    conic-gradient(from 0deg, var(--accent), var(--accent2), var(--accent)) border-box;
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 12px), #000 0);
+  mask: radial-gradient(farthest-side, transparent calc(100% - 12px), #000 0);
+  animation: spin 1s linear infinite;
+  box-shadow: 0 0 40px color-mix(in oklab, var(--accent) 40%, transparent);
+}
+@keyframes spin{ to{ transform: rotate(360deg) } }
+.shimmer{
+  margin-top:12px; height:10px; width:220px; border-radius:999px;
+  background:linear-gradient(90deg, #ffffff22, #ffffff55, #ffffff22);
+  background-size:200% 100%; animation: shimmer 1.3s infinite linear
+}
+@keyframes shimmer{ to{ background-position: -200% 0 } }
+
+/* responsive */
+@media (max-width:920px){ .grid{grid-template-columns:1fr} .col-6,.col-12{grid-column:auto} }
 </style>
 <script>
-function addRow(){const t=document.getElementById('items');const r=t.insertRow(-1);r.innerHTML='<td><input name="description" placeholder="Description" required></td><td><input name="qty" type="number" step="0.01" placeholder="Qty" required></td><td><input name="unit_price" type="number" step="0.01" placeholder="Unit Price" required></td>'; }
+function addRow(){
+  const t=document.getElementById('items');const r=t.insertRow(-1);
+  r.innerHTML='<td><input name="description" placeholder="Description" required></td><td><input name="qty" type="number" step="0.01" placeholder="Qty" required></td><td><input name="unit_price" type="number" step="0.01" placeholder="Unit Price" required></td>';
+}
+function setTheme(t){ document.documentElement.setAttribute('data-theme', t); localStorage.setItem('sr_theme', t); }
+function initTheme(){
+  const saved=localStorage.getItem('sr_theme'); const prefers=window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';
+  const theme=saved||prefers; setTheme(theme);
+  const chk=document.getElementById('themeChk'); if(chk) chk.checked=(theme==='light');
+}
+function onThemeToggle(e){ setTheme(e.target.checked?'light':'dark'); }
+function onLogoChange(e){
+  const f=e.target.files && e.target.files[0]; if(!f) return;
+  if(!f.type.startsWith('image/')) return alert('Please select an image file.');
+  const r=new FileReader(); r.onload=ev=>{ document.querySelector('.logo-preview').style.backgroundImage='url('+ev.target.result+')'; document.getElementById('logo_data').value=ev.target.result; };
+  r.readAsDataURL(f);
+}
+function onSubmitStart(){ document.querySelector('.loading').classList.add('show'); }
+document.addEventListener('DOMContentLoaded', ()=>{
+  initTheme();
+  const chk=document.getElementById('themeChk'); if(chk) chk.addEventListener('change', onThemeToggle);
+  const logo=document.getElementById('logo_file'); if(logo) logo.addEventListener('change', onLogoChange);
+  const form=document.querySelector('form'); form.addEventListener('submit', onSubmitStart);
+  document.querySelector('input[name=invoice_date]').value=new Date().toISOString().slice(0,10);
+  addRow();
+});
 </script>
 </head>
 <body>
-<div class="container">
-<h2>Create and Email Receipt</h2>
-<form method="post" action="/submit">
-  <h3>Business</h3>
-  <input name="business_name" placeholder="Business Name" required>
-  <input name="business_address" placeholder="Business Address" required>
-  <input name="business_email" placeholder="Business Email" required>
-  <h3>Receipt</h3>
-  <input name="invoice_id" placeholder="Receipt/Invoice ID" required>
-  <input name="invoice_date" placeholder="YYYY-MM-DD" required>
-  <input name="due_date" placeholder="YYYY-MM-DD" required>
-  <textarea name="notes" placeholder="Notes"></textarea>
-  <h3>Client</h3>
-  <input name="client_name" placeholder="Client Name" required>
-  <input name="client_email" placeholder="Client Email" required>
-  <input name="client_address" placeholder="Client Address" required>
-  <h3>Items</h3>
-  <table><thead><tr><th>Description</th><th>Qty</th><th>Unit Price</th></tr></thead><tbody id="items"></tbody></table>
-  <button type="button" onclick="addRow()">+ Add Item</button>
-  <h3>Tax Rate</h3>
-  <input name="tax_rate" type="number" step="0.0001" value="0.0825" required>
-  <h3>Email Copies To</h3>
-  <input name="owner_email" placeholder="Business Owner Email" required>
-  <button type="submit">Generate & Send</button>
-</form>
-<footer>© 2025 SmartReceipt – Powered by Flask</footer>
+<div class="wrapper">
+  <div class="header">
+    <div class="brand"><span class="dot"></span> SmartReceipt <small class="kbd">v1</small></div>
+    <div class="theme-toggle">
+      <small>Light</small>
+      <label class="switch">
+        <input id="themeChk" type="checkbox"><span class="slider"></span>
+      </label>
+      <small>Dark</small>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="topbar">
+      <h2>Create & Email Receipt</h2>
+      <div><span class="kbd">Tab</span> to move · <span class="kbd">Enter</span> to submit</div>
+    </div>
+
+    <form method="post" action="/submit" enctype="multipart/form-data">
+      <input type="hidden" name="logo_data" id="logo_data">
+      <div class="grid">
+        <div class="section col-6">
+          <h3>Business</h3>
+          <label>Business Name</label>
+          <input name="business_name" placeholder="Your LLC, Inc., etc." required>
+          <label>Business Address</label>
+          <input name="business_address" placeholder="123 Main St, City, ST ZIP" required>
+          <label>Business Email</label>
+          <input name="business_email" placeholder="you@company.com" required>
+          <label>Logo (optional)</label>
+          <div class="logo-box">
+            <div class="logo-preview"></div>
+            <input id="logo_file" type="file" accept="image/*">
+          </div>
+        </div>
+
+        <div class="section col-6">
+          <h3>Receipt</h3>
+          <label>Receipt / Invoice ID</label>
+          <input name="invoice_id" placeholder="INV-1001" required>
+          <label>Invoice Date</label>
+          <input name="invoice_date" placeholder="YYYY-MM-DD" required>
+          <label>Due Date</label>
+          <input name="due_date" placeholder="YYYY-MM-DD" required>
+          <label>Notes</label>
+          <textarea name="notes" placeholder="Optional message or payment terms"></textarea>
+        </div>
+
+        <div class="section col-6">
+          <h3>Client</h3>
+          <label>Client Name</label>
+          <input name="client_name" placeholder="Client full name" required>
+          <label>Client Email</label>
+          <input name="client_email" placeholder="client@email.com" required>
+          <label>Client Address</label>
+          <input name="client_address" placeholder="Address or company details" required>
+        </div>
+
+        <div class="section col-6">
+          <h3>Tax & Delivery</h3>
+          <label>Tax Rate</label>
+          <input name="tax_rate" type="number" step="0.0001" value="0.0825" required>
+          <label>Send Copy To (Owner Email)</label>
+          <input name="owner_email" placeholder="owner@company.com" required>
+        </div>
+
+        <div class="section col-12">
+          <h3>Items</h3>
+          <div class="tablewrap">
+            <table>
+              <thead><tr><th>Description</th><th>Qty</th><th>Unit Price</th></tr></thead>
+              <tbody id="items"></tbody>
+            </table>
+          </div>
+          <div class="actions" style="justify-content:flex-start;padding-left:0;margin-top:10px;border-top:none">
+            <button type="button" class="btn btn-ghost" onclick="addRow()">+ Add Item</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button type="button" class="btn btn-ghost" onclick="addRow()">+ Add Item</button>
+        <button type="submit" class="btn btn-primary">Generate & Send</button>
+      </div>
+    </form>
+  </div>
 </div>
-<script>document.querySelector('input[name=invoice_date]').value=new Date().toISOString().slice(0,10);addRow();</script>
+
+<div class="loading" aria-hidden="true">
+  <div>
+    <div class="spinner"></div>
+    <div class="shimmer"></div>
+  </div>
+</div>
 </body>
 </html>"""
 
@@ -328,6 +469,7 @@ def submit():
     "client_name": request.form.get("client_name",""),
     "client_email": request.form.get("client_email",""),
     "client_address": request.form.get("client_address",""),
+    "logo": request.form.get("logo_data","")
   }
   tax_rate= float(request.form.get("tax_rate","0") or 0)
   descs= request.form.getlist("description")
