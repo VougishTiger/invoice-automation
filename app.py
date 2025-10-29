@@ -6,6 +6,7 @@ from email.message import EmailMessage
 from flask import Flask, request, render_template_string, send_file
 from datetime import date
 import shutil
+import subprocess
 
 EMAIL_USER= os.getenv("EMAIL_USER", "")
 EMAIL_PASS= os.getenv("EMAIL_PASS","")
@@ -319,7 +320,7 @@ function setTheme(t){ document.documentElement.setAttribute('data-theme', t); lo
 function initTheme(){
   const saved=localStorage.getItem('sr_theme'); const prefers=window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';
   const theme=saved||prefers; setTheme(theme);
-  const chk=document.getElementById('themeChk'); if(chk) chk.addEventListener('change', onThemeToggle);
+  const chk=document.getElementById('themeChk'); if(chk) chk.checked=(theme==='light');
 }
 function onThemeToggle(e){ setTheme(e.target.checked?'light':'dark'); }
 function onLogoChange(e){
@@ -331,6 +332,7 @@ function onLogoChange(e){
 function onSubmitStart(){ document.querySelector('.loading').classList.add('show'); }
 document.addEventListener('DOMContentLoaded', ()=>{
   initTheme();
+  const chk=document.getElementById('themeChk'); if(chk) chk.addEventListener('change', onThemeToggle);
   const logo=document.getElementById('logo_file'); if(logo) logo.addEventListener('change', onLogoChange);
   const form=document.querySelector('form'); form.addEventListener('submit', onSubmitStart);
   document.querySelector('input[name=invoice_date]').value=new Date().toISOString().slice(0,10);
@@ -456,6 +458,16 @@ def send_mail(to_email, subject, body, pdf_bytes, fname):
 def index():
   return render_template_string(FORM)
 
+@app.get("/diag")
+def diag():
+  wk= shutil.which("wkhtmltopdf")
+  try:
+    ver= subprocess.run([wk or "wkhtmltopdf","-V"], capture_output=True, text=True, check=False)
+    out= ver.stdout or ver.stderr
+  except Exception as e:
+    out= str(e)
+  return {"wkhtmltopdf": wk, "version": out}
+
 @app.post("/submit")
 def submit():
   inv= {
@@ -494,7 +506,10 @@ def submit():
   if not wkhtml:
     return "wkhtmltopdf not found on this system. Install it or add it to PATH.", 500
   config= pdfkit.configuration(wkhtmltopdf= wkhtml)
-  pdf_bytes= pdfkit.from_string(render_template_string(TPL, **ctx), False, configuration= config, options={"page-size":"Letter","margin-top":"10mm","margin-right":"10mm","margin-bottom":"10mm","margin-left":"10mm","quiet":"","no-print-media-type":None,"disable-smart-shrinking":""})
+  try:
+    pdf_bytes= pdfkit.from_string(render_template_string(TPL, **ctx), False, configuration= config, options={"page-size":"Letter","margin-top":"10mm","margin-right":"10mm","margin-bottom":"10mm","margin-left":"10mm","quiet":"","no-print-media-type":None,"disable-smart-shrinking":""})
+  except Exception as e:
+    return str(e), 500
   fname= f"{inv['invoice_id']}.pdf"
   try:
     if EMAIL_USER and EMAIL_PASS and inv["client_email"]:
