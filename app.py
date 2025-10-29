@@ -211,7 +211,7 @@ body{
 
 .theme-toggle{ display:flex; align-items:center; gap:10px }
 .switch{ position:relative; width:48px; height:26px }
-switch input{ opacity:0; width:0; height:0 }
+.switch input{ opacity:0; width:0; height:0 }
 .slider{
   position:absolute; cursor:pointer; inset:0; background:#1b2740; border:1px solid var(--line); border-radius:999px;
   transition:.2s; box-shadow: inset 0 1px 0 rgba(255,255,255,.04)
@@ -267,7 +267,7 @@ td input{ background:color-mix(in oklab, var(--bg0) 12%, black) }
   background:color-mix(in oklab, var(--bg1) 75%, black) center/cover no-repeat;
 }
 
-actions{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; justify-content:flex-end; padding:16px; border-top:1px solid var(--line); background:color-mix(in oklab, var(--bg0) 85%, black) }
+.actions{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; justify-content:flex-end; padding:16px; border-top:1px solid var(--line); background:color-mix(in oklab, var(--bg0) 85%, black) }
 .btn{
   appearance:none; border:none; cursor:pointer; padding:10px 14px; border-radius:10px; font-weight:600;
   letter-spacing:.3px; transition:transform .08s ease, box-shadow .2s ease, opacity .2s ease;
@@ -484,7 +484,13 @@ def submit():
   tax= round(subtotal*tax_rate,2)
   total= subtotal+tax
   ctx= {**inv,"rows":"\n".join(rows_html) if rows_html else "<tr><td colspan='4'>No items</td></tr>","subtotal": money(subtotal),"tax": money(tax),"total": money(total)}
-  wkhtml= shutil.which("wkhtmltopdf")
+  candidates= [
+    os.path.join(os.getcwd(),"bin","wkhtmltopdf"),
+    "/opt/render/project/src/bin/wkhtmltopdf",
+    "/usr/local/bin/wkhtmltopdf",
+    "/usr/bin/wkhtmltopdf"
+  ]
+  wkhtml= next((p for p in candidates if os.path.exists(p)), None) or shutil.which("wkhtmltopdf")
   if not wkhtml:
     return "wkhtmltopdf not found on this system. Install it or add it to PATH.", 500
   config= pdfkit.configuration(wkhtmltopdf= wkhtml)
@@ -502,4 +508,3 @@ def submit():
 
 if __name__ == "__main__":
   app.run(host="0.0.0.0", port=int(os.getenv("PORT","5000")), debug=True)
-
