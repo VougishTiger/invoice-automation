@@ -6,7 +6,6 @@ from email.message import EmailMessage
 from flask import Flask, request, render_template_string, send_file
 from datetime import date
 import shutil
-import subprocess
 
 EMAIL_USER= os.getenv("EMAIL_USER", "")
 EMAIL_PASS= os.getenv("EMAIL_PASS","")
@@ -256,11 +255,23 @@ input::placeholder,textarea::placeholder{ color:color-mix(in oklab, var(--muted)
 input:focus,textarea:focus{ outline:none; border-color:var(--accent); box-shadow:var(--ring) }
 input:active{ transform:scale(.998) }
 
+[data-theme="light"] input,[data-theme="light"] textarea{
+  background:#ffffff;
+  color:#0f172a;
+  border:1px solid var(--line);
+}
+
 .tablewrap{ border:1px dashed var(--line); border-radius:10px; padding:10px; background:color-mix(in oklab, var(--bg1) 65%, black) }
 table{ width:100%; border-collapse:collapse }
 th,td{ padding:10px 10px; border-bottom:1px solid var(--line); font-size:14px }
 th{ color:color-mix(in oklab, var(--accent) 80%, white); text-align:left; font-weight:600 }
 td input{ background:color-mix(in oklab, var(--bg0) 12%, black) }
+
+[data-theme="light"] td input{
+  background:#ffffff;
+  color:#0f172a;
+  border:1px solid var(--line);
+}
 
 .logo-box{ display:flex; align-items:center; gap:12px; margin-top:6px }
 .logo-preview{
@@ -285,7 +296,6 @@ td input{ background:color-mix(in oklab, var(--bg0) 12%, black) }
   border-radius:6px; border:1px solid var(--line); background:color-mix(in oklab, var(--bg0) 88%, black); color:var(--muted); font-size:12px
 }
 
-/* submit loading overlay */
 .loading{
   position:fixed; inset:0; display:none; place-items:center; backdrop-filter:blur(6px);
   background:rgba(0,0,0,.35); z-index:50
@@ -308,7 +318,6 @@ td input{ background:color-mix(in oklab, var(--bg0) 12%, black) }
 }
 @keyframes shimmer{ to{ background-position: -200% 0 } }
 
-/* responsive */
 @media (max-width:920px){ .grid{grid-template-columns:1fr} .col-6,.col-12{grid-column:auto} }
 </style>
 <script>
@@ -343,7 +352,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
 <body>
 <div class="wrapper">
   <div class="header">
-    <div class="brand"><span class="dot"></span> SmartReceipt <small class="kbd">v1</small></div>
+    <div class="brand"><span class="dot"></span> InstaVoicePDF <small class="kbd">v1</small></div>
     <div class="theme-toggle">
       <small>Light</small>
       <label class="switch">
@@ -457,16 +466,6 @@ def send_mail(to_email, subject, body, pdf_bytes, fname):
 @app.get("/")
 def index():
   return render_template_string(FORM)
-
-@app.get("/diag")
-def diag():
-  wk= shutil.which("wkhtmltopdf")
-  try:
-    ver= subprocess.run([wk or "wkhtmltopdf","-V"], capture_output=True, text=True, check=False)
-    out= ver.stdout or ver.stderr
-  except Exception as e:
-    out= str(e)
-  return {"wkhtmltopdf": wk, "version": out}
 
 @app.post("/submit")
 def submit():
