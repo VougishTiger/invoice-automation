@@ -3,7 +3,7 @@ import io
 import pdfkit
 import smtplib
 from email.message import EmailMessage
-from flask import Flask, request, render_template_string, send_file
+from flask import Flask, request, render_template_string, send_file, redirect
 from datetime import date
 import shutil
 
@@ -16,114 +16,184 @@ TPL= """<!doctype html>
 <meta charset="utf-8">
 <title>{{ invoice_id }} - Receipt</title>
 <style>
-:root{
-  --bg:#0f172a;
-  --panel:#1e293b;
-  --border:#334155;
-  --text:#f1f5f9;
-  --muted:#94a3b8;
-  --accent:#38bdf8;
-  --glow:0 0 15px rgba(56,189,248,0.4);
-}
-*{box-sizing:border-box;margin:0;padding:0}
-html,body{background:var(--bg);color:var(--text);font-family:"Inter",Arial,Helvetica,sans-serif;line-height:1.5}
+*{box-sizing:border-box;margin:0;padding:0;font-family:"Inter",Arial,Helvetica,sans-serif;line-height:1.4;color:#0f172a}
+body{background:#f8fafc;padding:32px}
 .paper{
-  width:820px;
-  margin:40px auto;
-  background:rgba(30,41,59,0.9);
-  border:1px solid var(--border);
-  border-radius:16px;
-  padding:50px;
-  box-shadow:0 8px 30px rgba(0,0,0,0.5);
-  backdrop-filter:blur(10px);
+  width:800px;
+  margin:0 auto;
+  background:#ffffff;
+  border:1px solid #e2e8f0;
+  border-radius:12px;
+  padding:32px 36px;
+  box-shadow:0 20px 50px rgba(15,23,42,0.08);
 }
 .header{
   display:flex;
   justify-content:space-between;
   align-items:flex-start;
-  padding-bottom:24px;
-  border-bottom:2px solid var(--border);
-  gap:18px;
+  padding-bottom:20px;
+  border-bottom:2px solid #e2e8f0;
+  gap:16px;
 }
 .brandwrap{display:flex;gap:14px;align-items:flex-start}
 .logoimg{
-  width:56px;height:56px;border-radius:10px;border:1px solid var(--border);
-  object-fit:cover; background:#0b1220
+  width:56px;
+  height:56px;
+  border-radius:10px;
+  border:1px solid #e2e8f0;
+  object-fit:cover;
+  background:#fff;
 }
 h1{
-  font-size:32px;
-  letter-spacing:1px;
+  font-size:24px;
+  font-weight:600;
+  letter-spacing:.04em;
   text-transform:uppercase;
-  color:var(--accent);
-  text-shadow:var(--glow);
-  margin-bottom:6px
+  color:#0f172a;
+  margin-bottom:4px;
 }
-.brand{font-weight:700;font-size:18px;color:var(--text);margin-top:4px}
-.muted{color:var(--muted);font-size:14px}
-.meta{text-align:right;font-size:14px;color:var(--muted)}
-.meta b{color:var(--text)}
-h3{margin:28px 0 10px 0;font-size:18px;color:var(--accent);text-transform:uppercase;letter-spacing:.5px}
+.brand{
+  font-weight:600;
+  font-size:16px;
+  color:#0f172a;
+  margin-top:2px;
+}
+.sub{
+  font-size:13px;
+  color:#475569;
+  line-height:1.4;
+}
+.meta{
+  text-align:right;
+  font-size:14px;
+  color:#0f172a;
+  line-height:1.4;
+}
+.meta-row{
+  margin-bottom:4px;
+}
+.meta-label{
+  color:#475569;
+  font-size:12px;
+  text-transform:uppercase;
+  letter-spacing:.06em;
+  display:block;
+  margin-bottom:2px;
+}
+.meta-value{
+  font-size:14px;
+  color:#0f172a;
+  font-weight:500;
+}
+h3{
+  margin:24px 0 10px 0;
+  font-size:13px;
+  font-weight:600;
+  color:#475569;
+  text-transform:uppercase;
+  letter-spacing:.08em;
+}
 .billto{
-  background:rgba(15,23,42,0.8);
-  border:1px solid var(--border);
-  border-radius:12px;
+  background:#f8fafc;
+  border:1px solid #e2e8f0;
+  border-radius:10px;
   padding:16px 18px;
-  box-shadow:inset 0 0 10px rgba(56,189,248,0.2);
 }
-.billto strong{font-size:16px;color:var(--text)}
-.billto .muted{font-size:13px}
+.bill-name{
+  font-size:15px;
+  font-weight:600;
+  color:#0f172a;
+  margin-bottom:2px;
+}
+.bill-line{
+  font-size:13px;
+  color:#475569;
+  line-height:1.4;
+}
+.table-wrap{
+  margin-top:24px;
+  border:1px solid #e2e8f0;
+  border-radius:10px;
+  overflow:hidden;
+}
 table{
   width:100%;
   border-collapse:collapse;
-  margin-top:24px;
-}
-th,td{
-  padding:12px 14px;
-  border-bottom:1px solid var(--border);
-  font-size:15px;
+  font-size:14px;
 }
 th{
+  background:#f1f5f9;
   text-align:left;
-  color:var(--accent);
-  text-transform:uppercase;
-  letter-spacing:.5px;
   font-weight:600;
+  color:#0f172a;
+  font-size:12px;
+  text-transform:uppercase;
+  letter-spacing:.06em;
+  padding:12px 14px;
+  border-bottom:1px solid #e2e8f0;
 }
-.right{text-align:right}
+td{
+  padding:12px 14px;
+  border-bottom:1px solid #e2e8f0;
+  vertical-align:top;
+  color:#0f172a;
+  font-size:14px;
+}
+tr:last-child td{
+  border-bottom:none;
+}
+.right{text-align:right;white-space:nowrap}
 .totals{
-  width:360px;
+  width:300px;
   margin-left:auto;
   margin-top:28px;
-  background:rgba(15,23,42,0.8);
-  border:1px solid var(--border);
-  border-radius:12px;
-  box-shadow:var(--glow);
+  border:1px solid #e2e8f0;
+  border-radius:10px;
   overflow:hidden;
+  background:#fff;
 }
-.totals table{margin:0}
-.totals td,.totals th{
-  border:none;
+.totals-row{
+  display:flex;
+  justify-content:space-between;
   padding:12px 14px;
-  font-size:16px;
-}
-.totals th{text-align:right;color:var(--accent)}
-.note{
-  margin-top:30px;
+  border-bottom:1px solid #e2e8f0;
   font-size:14px;
-  color:var(--muted);
-  padding:14px;
-  background:rgba(30,41,59,0.6);
-  border-left:3px solid var(--accent);
-  border-radius:8px;
+  color:#0f172a;
+}
+.totals-row:last-child{
+  border-bottom:none;
+  background:#f8fafc;
+  font-weight:600;
+  font-size:15px;
+}
+.label{
+  color:#475569;
+}
+.value{
+  color:#0f172a;
+  font-weight:500;
+}
+.note{
+  margin-top:24px;
+  font-size:13px;
+  line-height:1.4;
+  color:#475569;
+  border-left:3px solid #0ea5e9;
+  padding:12px 14px;
+  background:#f8fafc;
+  border-radius:6px;
 }
 .footer{
   text-align:center;
-  margin-top:40px;
-  font-size:13px;
-  color:var(--muted);
-  letter-spacing:.5px;
+  margin-top:32px;
+  font-size:12px;
+  color:#94a3b8;
+  letter-spacing:.04em;
 }
-@page{size:Letter;margin:12mm}
+@page{
+  size:Letter;
+  margin:12mm;
+}
 </style>
 </head>
 <body>
@@ -132,45 +202,64 @@ th{
     <div class="brandwrap">
       {% if logo %}<img class="logoimg" src="{{ logo }}" alt="logo">{% endif %}
       <div>
-        <h1>RECEIPT</h1>
+        <h1>Receipt</h1>
         <div class="brand">{{ business_name }}</div>
-        <div class="muted">{{ business_address }}</div>
-        <div class="muted">{{ business_email }}</div>
+        <div class="sub">{{ business_address }}</div>
+        <div class="sub">{{ business_email }}</div>
       </div>
     </div>
     <div class="meta">
-      <div><b>Receipt #:</b> {{ invoice_id }}</div>
-      <div><b>Date:</b> {{ invoice_date }}</div>
-      <div><b>Due:</b> {{ due_date }}</div>
+      <div class="meta-row">
+        <div class="meta-label">Receipt #</div>
+        <div class="meta-value">{{ invoice_id }}</div>
+      </div>
+      <div class="meta-row">
+        <div class="meta-label">Date</div>
+        <div class="meta-value">{{ invoice_date }}</div>
+      </div>
+      <div class="meta-row">
+        <div class="meta-label">Due</div>
+        <div class="meta-value">{{ due_date }}</div>
+      </div>
     </div>
   </div>
+
   <h3>Billed To</h3>
   <div class="billto">
-    <div><strong>{{ client_name }}</strong></div>
-    <div class="muted">{{ client_address }}</div>
-    <div class="muted">{{ client_email }}</div>
+    <div class="bill-name">{{ client_name }}</div>
+    <div class="bill-line">{{ client_address }}</div>
+    <div class="bill-line">{{ client_email }}</div>
   </div>
 
-  <table>
-    <thead>
-      <tr>
-        <th>Description</th>
-        <th class="right">Qty</th>
-        <th class="right">Unit Price</th>
-        <th class="right">Line Total</th>
-      </tr>
-    </thead>
-    <tbody>
-      {{ rows }}
-    </tbody>
-  </table>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Description</th>
+          <th class="right">Qty</th>
+          <th class="right">Unit Price</th>
+          <th class="right">Line Total</th>
+        </tr>
+      </thead>
+      <tbody>
+        {{ rows }}
+      </tbody>
+    </table>
+  </div>
 
   <div class="totals">
-    <table>
-      <tr><td>Subtotal</td><td class="right">{{ subtotal }}</td></tr>
-      <tr><td>Tax</td><td class="right">{{ tax }}</td></tr>
-      <tr><th>Total</th><th class="right">{{ total }}</th></tr>
-    </table>
+    <div class="totals-row">
+      <div class="label">Subtotal</div>
+      <div class="value">{{ subtotal }}</div>
+    </div>
+    <div class="totals-row">
+      <div class="label">Tax</div>
+      <div class="value">{{ tax }}</div>
+    </div>
+    <div class="totals-row">
+      <div class="label">Total</div>
+      <div class="value">{{ total }}</div>
+    </div>
   </div>
 
   <div class="note"><strong>Notes:</strong> {{ notes }}</div>
@@ -462,7 +551,6 @@ def send_mail(to_email, subject, body, pdf_bytes, fname):
     s.login(EMAIL_USER, EMAIL_PASS)
     s.send_message(msg)
 
-
 @app.get("/")
 def index():
   return render_template_string(FORM)
@@ -505,10 +593,7 @@ def submit():
   if not wkhtml:
     return "wkhtmltopdf not found on this system. Install it or add it to PATH.", 500
   config= pdfkit.configuration(wkhtmltopdf= wkhtml)
-  try:
-    pdf_bytes= pdfkit.from_string(render_template_string(TPL, **ctx), False, configuration= config, options={"page-size":"Letter","margin-top":"10mm","margin-right":"10mm","margin-bottom":"10mm","margin-left":"10mm","quiet":"","no-print-media-type":None,"disable-smart-shrinking":""})
-  except Exception as e:
-    return str(e), 500
+  pdf_bytes= pdfkit.from_string(html= render_template_string(TPL, **ctx), output_path= False, configuration= config, options={"page-size":"Letter","margin-top":"10mm","margin-right":"10mm","margin-bottom":"10mm","margin-left":"10mm","quiet":"","no-print-media-type":None,"disable-smart-shrinking":""})
   fname= f"{inv['invoice_id']}.pdf"
   try:
     if EMAIL_USER and EMAIL_PASS and inv["client_email"]:
@@ -518,7 +603,7 @@ def submit():
       send_mail(owner_email, f"Receipt {inv['invoice_id']}", f"Copy of receipt {inv['invoice_id']} total {ctx['total']}.", pdf_bytes, fname)
   except Exception:
     pass
-  return send_file(io.BytesIO(pdf_bytes), mimetype="application/pdf", as_attachment=True, download_name=fname)
+  return redirect("/")
 
 if __name__ == "__main__":
   app.run(host="0.0.0.0", port=int(os.getenv("PORT","5000")), debug=True)
