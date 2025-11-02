@@ -3,7 +3,7 @@ import io
 import pdfkit
 import smtplib
 from email.message import EmailMessage
-from flask import Flask, request, render_template_string, send_file
+from flask import Flask, request, render_template_string, send_file, redirect
 from datetime import date
 import shutil
 
@@ -593,10 +593,21 @@ def submit():
   if not wkhtml:
     return "wkhtmltopdf not found on this system. Install it or add it to PATH.", 500
   config= pdfkit.configuration(wkhtmltopdf= wkhtml)
-  try:
-    pdf_bytes= pdfkit.from_string(html= render_template_string(TPL, **ctx), output_path= False, configuration= config, options={"page-size":"Letter","margin-top":"10mm","margin-right":"10mm","margin-bottom":"10mm","margin-left":"10mm","quiet":"","no-print-media-type":None,"disable-smart-shrinking":""})
-  except Exception as e:
-    return str(e), 500
+  pdf_bytes= pdfkit.from_string(
+    render_template_string(TPL, **ctx),
+    False,
+    configuration=config,
+    options={
+      "page-size":"Letter",
+      "margin-top":"10mm",
+      "margin-right":"10mm",
+      "margin-bottom":"10mm",
+      "margin-left":"10mm",
+      "quiet":"",
+      "no-print-media-type":None,
+      "disable-smart-shrinking":""
+    }
+  )
   fname= f"{inv['invoice_id']}.pdf"
   try:
     if EMAIL_USER and EMAIL_PASS and inv["client_email"]:
@@ -606,7 +617,7 @@ def submit():
       send_mail(owner_email, f"Receipt {inv['invoice_id']}", f"Copy of receipt {inv['invoice_id']} total {ctx['total']}.", pdf_bytes, fname)
   except Exception:
     pass
-  return send_file(io.BytesIO(pdf_bytes), mimetype="application/pdf", as_attachment=True, download_name=fname)
+  return redirect("/")
 
 if __name__ == "__main__":
   app.run(host="0.0.0.0", port=int(os.getenv("PORT","5000")), debug=True)
