@@ -117,13 +117,19 @@ h3{
   border-radius:10px;
   overflow:hidden;
 }
-table{
+.tbl-head{
   width:100%;
   border-collapse:collapse;
+  table-layout:fixed;
   font-size:14px;
-  table-layout:fixed
 }
-th{
+.tbl-body{
+  width:100%;
+  border-collapse:collapse;
+  table-layout:fixed;
+  font-size:14px;
+}
+.tbl-head th{
   background:#f1f5f9;
   text-align:left;
   font-weight:600;
@@ -134,14 +140,14 @@ th{
   padding:12px 14px;
   border-bottom:1px solid #e2e8f0;
 }
-td{
+.tbl-body td{
   padding:12px 14px;
   border-bottom:1px solid #e2e8f0;
   vertical-align:top;
   color:#0f172a;
   font-size:14px;
 }
-tr:last-child td{
+.tbl-body tr:last-child td{
   border-bottom:none;
 }
 th.desc,td.desc{width:55%;text-align:left}
@@ -239,14 +245,16 @@ th.line,td.line{width:15%;text-align:right;white-space:nowrap}
   </div>
 
   <div class="table-wrap">
-    <table>
+    <table class="tbl-head">
+      <tr>
+        <th class="desc">Description</th>
+        <th class="qty">Qty</th>
+        <th class="unit">Unit Price</th>
+        <th class="line">Line Total</th>
+      </tr>
+    </table>
+    <table class="tbl-body">
       <tbody>
-        <tr>
-          <th class="desc">Description</th>
-          <th class="qty">Qty</th>
-          <th class="unit">Unit Price</th>
-          <th class="line">Line Total</th>
-        </tr>
         {{ rows }}
       </tbody>
     </table>
