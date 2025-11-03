@@ -17,15 +17,16 @@ TPL= """<!doctype html>
 <title>{{ invoice_id }} - Receipt</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;font-family:"Inter",Arial,Helvetica,sans-serif;line-height:1.4;color:#0f172a}
-body{background:#f8fafc;padding:32px}
+html,body{width:100%;overflow-x:hidden;background:#f8fafc;padding:32px}
 .paper{
-  width:800px;
-  margin:0 auto;
+  max-width:720px;
+  width:100%;
+  margin:20px auto;
   background:#ffffff;
   border:1px solid #e2e8f0;
   border-radius:12px;
-  padding:32px 36px;
-  box-shadow:0 20px 50px rgba(15,23,42,0.08);
+  padding:28px 32px;
+  box-shadow:0 12px 30px rgba(15,23,42,0.06);
 }
 .header{
   display:flex;
