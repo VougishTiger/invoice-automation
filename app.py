@@ -240,15 +240,13 @@ th.line,td.line{width:15%;text-align:right;white-space:nowrap}
 
   <div class="table-wrap">
     <table>
-      <thead>
+      <tbody>
         <tr>
           <th class="desc">Description</th>
           <th class="qty">Qty</th>
           <th class="unit">Unit Price</th>
           <th class="line">Line Total</th>
         </tr>
-      </thead>
-      <tbody>
         {{ rows }}
       </tbody>
     </table>
