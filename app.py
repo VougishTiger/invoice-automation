@@ -3,7 +3,7 @@ import io
 import pdfkit
 import smtplib
 from email.message import EmailMessage
-from flask import Flask, request, render_template_string, send_file, redirect
+from flask import Flask, request, render_template_string, send_file
 from datetime import date
 import shutil
 
@@ -117,19 +117,13 @@ h3{
   border-radius:10px;
   overflow:hidden;
 }
-.tbl-head{
+table{
   width:100%;
   border-collapse:collapse;
-  table-layout:fixed;
   font-size:14px;
+  table-layout:fixed
 }
-.tbl-body{
-  width:100%;
-  border-collapse:collapse;
-  table-layout:fixed;
-  font-size:14px;
-}
-.tbl-head th{
+th{
   background:#f1f5f9;
   text-align:left;
   font-weight:600;
@@ -140,14 +134,14 @@ h3{
   padding:12px 14px;
   border-bottom:1px solid #e2e8f0;
 }
-.tbl-body td{
+td{
   padding:12px 14px;
   border-bottom:1px solid #e2e8f0;
   vertical-align:top;
   color:#0f172a;
   font-size:14px;
 }
-.tbl-body tr:last-child td{
+tr:last-child td{
   border-bottom:none;
 }
 th.desc,td.desc{width:55%;text-align:left}
@@ -245,17 +239,17 @@ th.line,td.line{width:15%;text-align:right;white-space:nowrap}
   </div>
 
   <div class="table-wrap">
-    <table class="tbl-head">
-      <tr>
-        <th class="desc">Description</th>
-        <th class="qty">Qty</th>
-        <th class="unit">Unit Price</th>
-        <th class="line">Line Total</th>
-      </tr>
-    </table>
-    <table class="tbl-body">
+    <table>
+      <thead>
+        <tr>
+          <th class="desc">Description</th>
+          <th class="qty">Qty</th>
+          <th class="unit">Unit Price</th>
+          <th class="line">Line Total</th>
+        </tr>
+      </thead>
       <tbody>
-        {{ rows }}
+        {{ rows|safe }}
       </tbody>
     </table>
   </div>
@@ -592,7 +586,8 @@ def submit():
   for d,q,p in zip(descs,qtys,prices):
     if not (d and q and p): continue
     qv= float(q); pv= float(p); lt= qv*pv; subtotal+= lt
-    rows_html.append(f"<tr>"
+    rows_html.append(
+      f"<tr>"
       f"<td class='desc'>{d}</td>"
       f"<td class='qty'>{qv:.2f}</td>"
       f"<td class='unit'>{money(pv)}</td>"
@@ -601,12 +596,18 @@ def submit():
     )
   tax= round(subtotal*tax_rate,2)
   total= subtotal+tax
-  ctx= {**inv,"rows":"\n".join(rows_html) if rows_html else (
-    "<tr>"
-    "<td class='desc' colspan='4' style='text-align:center;color:#475569;"
-    "font-size:13px;padding:24px 0'>No items</td>"
-    "</tr>"
-    ),"subtotal": money(subtotal),"tax": money(tax),"total": money(total)}
+  ctx= {
+    **inv,
+    "rows":"\n".join(rows_html) if rows_html else (
+      "<tr>"
+      "<td class='desc' colspan='4' style='text-align:center;color:#475569;"
+      "font-size:13px;padding:24px 0'>No items</td>"
+      "</tr>"
+    ),
+    "subtotal": money(subtotal),
+    "tax": money(tax),
+    "total": money(total)
+  }
   candidates= [
     os.path.join(os.getcwd(),"bin","wkhtmltopdf"),
     "/opt/render/project/src/bin/wkhtmltopdf",
@@ -641,7 +642,7 @@ def submit():
       send_mail(owner_email, f"Receipt {inv['invoice_id']}", f"Copy of receipt {inv['invoice_id']} total {ctx['total']}.", pdf_bytes, fname)
   except Exception:
     pass
-  return redirect("/")
+  return send_file(io.BytesIO(pdf_bytes), mimetype="application/pdf", as_attachment=True, download_name=fname)
 
 if __name__ == "__main__":
   app.run(host="0.0.0.0", port=int(os.getenv("PORT","5000")), debug=True)
