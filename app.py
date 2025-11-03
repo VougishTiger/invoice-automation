@@ -121,6 +121,7 @@ table{
   width:100%;
   border-collapse:collapse;
   font-size:14px;
+  table-layout:fixed
 }
 th{
   background:#f1f5f9;
@@ -143,6 +144,11 @@ td{
 tr:last-child td{
   border-bottom:none;
 }
+th.desc,td.desc{width:55%;text-align:left}
+th.qty,td.qty{width:15%;text-align:right;white-space:nowrap}
+th.unit,td.unit{width:15%;text-align:right;white-space:nowrap}
+th.line,td.line{width:15%;text-align:right;white-space:nowrap}
+
 .right{text-align:right;white-space:nowrap}
 .totals{
   width:300px;
@@ -236,10 +242,10 @@ tr:last-child td{
     <table>
       <thead>
         <tr>
-          <th>Description</th>
-          <th class="right">Qty</th>
-          <th class="right">Unit Price</th>
-          <th class="right">Line Total</th>
+          <th class="desc">Description</th>
+          <th class="qty">Qty</th>
+          <th class="unit">Unit Price</th>
+          <th class="line">Line Total</th>
         </tr>
       </thead>
       <tbody>
@@ -580,10 +586,21 @@ def submit():
   for d,q,p in zip(descs,qtys,prices):
     if not (d and q and p): continue
     qv= float(q); pv= float(p); lt= qv*pv; subtotal+= lt
-    rows_html.append(f"<tr><td>{d}</td><td class='right'>{qv:.2f}</td><td class='right'>{money(pv)}</td><td class='right'>{money(lt)}</td></tr>")
+    rows_html.append(f"<tr>"
+      f"<td class='desc'>{d}</td>"
+      f"<td class='qty'>{qv:.2f}</td>"
+      f"<td class='unit'>{money(pv)}</td>"
+      f"<td class='line'>{money(lt)}</td>"
+      f"</tr>"
+    )
   tax= round(subtotal*tax_rate,2)
   total= subtotal+tax
-  ctx= {**inv,"rows":"\n".join(rows_html) if rows_html else "<tr><td colspan='4'>No items</td></tr>","subtotal": money(subtotal),"tax": money(tax),"total": money(total)}
+  ctx= {**inv,"rows":"\n".join(rows_html) if rows_html else (
+    "<tr>"
+    "<td class='desc' colspan='4' style='text-align:center;color:#475569;"
+    "font-size:13px;padding:24px 0'>No items</td>"
+    "</tr>"
+    ),"subtotal": money(subtotal),"tax": money(tax),"total": money(total)}
   candidates= [
     os.path.join(os.getcwd(),"bin","wkhtmltopdf"),
     "/opt/render/project/src/bin/wkhtmltopdf",
